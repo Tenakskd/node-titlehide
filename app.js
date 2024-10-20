@@ -66,6 +66,7 @@ function decodeBase64(str) {
     return Buffer.from(str, 'base64').toString('utf-8');
 }
 
+// Unblockerの設定
 var unblockerConfig = {
     prefix: '/proxy/',
     requestMiddleware: [
@@ -81,20 +82,28 @@ var unblocker = new Unblocker(unblockerConfig);
 
 app.use(unblocker);
 
+// 静的ファイルの提供
 app.use('/', express.static(__dirname + '/public'));
 
+// Base64でエンコードされたURLを使用するエンドポイント
+app.get("/proxy/:encodedUrl", function(req, res) {
+    var encodedUrl = req.params.encodedUrl;
+    try {
+        // Base64エンコードされたURLをデコード
+        var decodedUrl = decodeBase64(encodedUrl);
+        console.log("Decoded URL:", decodedUrl); // デバッグ用
+        req.url = decodedUrl;
+        unblocker(req, res); // Unblockerで処理
+    } catch (error) {
+        res.status(400).send('Invalid URL');
+    }
+});
+
+// 元のリクエストをBase64でエンコードしてリダイレクト
 app.get("/no-js", function(req, res) {
     var site = querystring.parse(url.parse(req.url).query).url;
     var encodedSite = encodeBase64(site); // URLをBase64でエンコード
-    res.redirect(unblockerConfig.prefix + encodedSite);
-});
-
-// Base64エンコードされたURLをデコードして処理
-app.get("/proxy/:encodedUrl", function(req, res) {
-    var encodedUrl = req.params.encodedUrl;
-    var decodedUrl = decodeBase64(encodedUrl); // URLをデコード
-    req.url = unblockerConfig.prefix + decodedUrl;
-    unblocker(req, res); // デコードしたURLをUnblockerに渡して処理
+    res.redirect(unblockerConfig.prefix + encodedSite); // エンコードされたURLでリダイレクト
 });
 
 const port = process.env.PORT || process.env.VCAP_APP_PORT || 8080;
