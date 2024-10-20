@@ -4,7 +4,7 @@ var express = require('express');
 var Unblocker = require('unblocker');
 var Transform = require('stream').Transform;
 var youtube = require('unblocker/examples/youtube/youtube.js');
-var Buffer = require('buffer').Buffer; // Base64エンコード/デコード用
+var Buffer = require('buffer').Buffer; // Base64用
 
 var app = express();
 
@@ -58,12 +58,10 @@ function titleMiddleware(data) {
     }
 }
 
-// Base64エンコードする関数
 function encodeBase64(str) {
     return Buffer.from(str).toString('base64');
 }
 
-// Base64デコードする関数
 function decodeBase64(str) {
     return Buffer.from(str, 'base64').toString('utf-8');
 }
@@ -85,23 +83,17 @@ app.use(unblocker);
 
 app.use('/', express.static(__dirname + '/public'));
 
-// Base64でエンコードされたURLを処理
-app.get("/proxy/:encodedUrl", function(req, res) {
-    try {
-        // エンコードされたURLをデコード
-        var decodedUrl = decodeBase64(req.params.encodedUrl);
-        res.redirect(unblockerConfig.prefix + decodedUrl);
-    } catch (error) {
-        res.status(400).send('Invalid URL encoding');
-    }
-});
-
 app.get("/no-js", function(req, res) {
     var site = querystring.parse(url.parse(req.url).query).url;
-    
-    // エンコードされたURLにリダイレクト
-    var encodedUrl = encodeBase64(site);
-    res.redirect(unblockerConfig.prefix + encodedUrl);
+    var encodedSite = encodeBase64(site); // URLをBase64でエンコード
+    res.redirect(unblockerConfig.prefix + encodedSite);
+});
+
+// Base64エンコードされたURLをデコードして処理
+app.get("/proxy/:encodedUrl", function(req, res) {
+    var encodedUrl = req.params.encodedUrl;
+    var decodedUrl = decodeBase64(encodedUrl); // URLをデコード
+    res.redirect(unblockerConfig.prefix + decodedUrl);
 });
 
 const port = process.env.PORT || process.env.VCAP_APP_PORT || 8080;
