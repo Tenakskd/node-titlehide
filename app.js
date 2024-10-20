@@ -93,7 +93,8 @@ app.get("/no-js", function(req, res) {
 app.get("/proxy/:encodedUrl", function(req, res) {
     var encodedUrl = req.params.encodedUrl;
     var decodedUrl = decodeBase64(encodedUrl); // URLをデコード
-    res.redirect(unblockerConfig.prefix + decodedUrl);
+    req.url = unblockerConfig.prefix + decodedUrl;
+    unblocker(req, res); // デコードしたURLをUnblockerに渡して処理
 });
 
 const port = process.env.PORT || process.env.VCAP_APP_PORT || 8080;
