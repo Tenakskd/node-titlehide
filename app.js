@@ -41,7 +41,7 @@ function googleAnalyticsMiddleware(data) {
 }
 
 function fixTitle(html) {
-    const fixedTitle = "<title>固定されたタイトル</title>";
+    const fixedTitle = "<title>scratch入門！</title>";
     return html.replace(/<title>.*<\/title>/, fixedTitle);
 }
 
