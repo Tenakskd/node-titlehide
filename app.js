@@ -1,4 +1,3 @@
-
 var url = require('url');
 var querystring = require('querystring');
 var express = require('express');
@@ -23,7 +22,7 @@ function addGa(html) {
             "  var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);",
             "})();",
             "</script>"
-            ].join("\n");
+        ].join("\n");
         html = html.replace("</body>", ga + "\n\n</body>");
     }
     return html;
@@ -31,12 +30,27 @@ function addGa(html) {
 
 function googleAnalyticsMiddleware(data) {
     if (data.contentType == 'text/html') {
-
-        // https://nodejs.org/api/stream.html#stream_transform
         data.stream = data.stream.pipe(new Transform({
             decodeStrings: false,
             transform: function(chunk, encoding, next) {
                 this.push(addGa(chunk.toString()));
+                next();
+            }
+        }));
+    }
+}
+
+function fixTitle(html) {
+    const fixedTitle = "<title>固定されたタイトル</title>";
+    return html.replace(/<title>.*<\/title>/, fixedTitle);
+}
+
+function titleMiddleware(data) {
+    if (data.contentType == 'text/html') {
+        data.stream = data.stream.pipe(new Transform({
+            decodeStrings: false,
+            transform: function(chunk, encoding, next) {
+                this.push(fixTitle(chunk.toString())); // タイトルを固定
                 next();
             }
         }));
@@ -49,23 +63,19 @@ var unblockerConfig = {
         youtube.processRequest
     ],
     responseMiddleware: [
-        googleAnalyticsMiddleware
+        googleAnalyticsMiddleware,
+        titleMiddleware // タイトル固定用のミドルウェア
     ]
 };
 
 var unblocker = new Unblocker(unblockerConfig);
 
-// this line must appear before any express.static calls (or anything else that sends responses)
 app.use(unblocker);
 
-// serve up static files *after* the proxy is run
 app.use('/', express.static(__dirname + '/public'));
 
-// this is for users who's form actually submitted due to JS being disabled or whatever
 app.get("/no-js", function(req, res) {
-    // grab the "url" parameter from the querystring
     var site = querystring.parse(url.parse(req.url).query).url;
-    // and redirect the user to /proxy/url
     res.redirect(unblockerConfig.prefix + site);
 });
 
@@ -73,4 +83,4 @@ const port = process.env.PORT || process.env.VCAP_APP_PORT || 8080;
 
 app.listen(port, function() {
     console.log(`node unblocker process listening at http://localhost:${port}/`);
-}).on("upgrade", unblocker.onUpgrade); // onUpgrade handles websockets
+}).on("upgrade", unblocker.onUpgrade);
